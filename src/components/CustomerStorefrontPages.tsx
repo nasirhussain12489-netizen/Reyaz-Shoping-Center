@@ -31,13 +31,14 @@ import {
   OrderItemLine,
 } from '../data/catalogData';
 
-// ================= REUSABLE PRODUCT CARD (NO TRY-ON) =================
+// ================= REUSABLE PRODUCT CARD (NO TRY-ON — MOBILE 2-3 COL & DESKTOP READY) =================
 interface ProductCardProps {
   product: ProductCatalogItem;
   isWished: boolean;
   onToggleWishlist: (id: string) => void;
   onOpenDetail: (id: string) => void;
   onQuickAddToCart: (product: ProductCatalogItem, selectedSize?: string) => void;
+  mobileCols?: 2 | 3;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -46,6 +47,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleWishlist,
   onOpenDetail,
   onQuickAddToCart,
+  mobileCols = 2,
 }) => {
   const [pickedSize, setPickedSize] = useState<string>(
     product.sizes.find((s) => s.stock > 0)?.code || product.sizes[0]?.code || 'M'
@@ -60,9 +62,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )
       : 0;
   const totalStock = product.sizes.reduce((s, item) => s + item.stock, 0);
+  const isDenseMobile = mobileCols === 3;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E6E1D6] overflow-hidden flex flex-col justify-between group hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
+    <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E6E1D6] overflow-hidden flex flex-col justify-between group hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
       <div>
         {/* Product Image Container */}
         <div
@@ -80,19 +83,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
 
           {/* Top Left Badges matching Mockup (NEW / SALE) */}
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+          <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 flex items-center gap-1">
             {product.isNew ? (
-              <span className="bg-[#15803D] text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md shadow-xs">
+              <span className="bg-[#15803D] text-white text-[8px] sm:text-[10px] font-extrabold uppercase tracking-wider px-1.5 sm:px-2.5 py-0.5 rounded shadow-xs">
                 NEW
               </span>
             ) : discountPct >= 30 ? (
-              <span className="bg-[#DC2626] text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md shadow-xs">
+              <span className="bg-[#DC2626] text-white text-[8px] sm:text-[10px] font-extrabold uppercase tracking-wider px-1.5 sm:px-2.5 py-0.5 rounded shadow-xs">
                 SALE
               </span>
             ) : null}
             {totalStock <= 0 && (
-              <span className="bg-stone-900 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-md">
-                OUT OF STOCK
+              <span className="bg-stone-900 text-white text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2.5 py-0.5 rounded">
+                OUT
               </span>
             )}
           </div>
@@ -104,11 +107,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               e.stopPropagation();
               onToggleWishlist(product.id);
             }}
-            className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/95 hover:bg-white flex items-center justify-center shadow-xs transition-colors cursor-pointer"
+            className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white/95 hover:bg-white flex items-center justify-center shadow-xs transition-colors cursor-pointer"
             aria-label="Toggle Wishlist"
           >
             <Heart
-              className={`w-4 h-4 ${
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                 isWished ? 'fill-[#DC2626] text-[#DC2626]' : 'text-[#0D1B2A]'
               }`}
             />
@@ -116,51 +119,69 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Card Body */}
-        <div className="p-3.5 space-y-2">
+        <div
+          className={`${
+            isDenseMobile ? 'p-1.5 sm:p-3.5 space-y-1 sm:space-y-2' : 'p-2.5 sm:p-3.5 space-y-1.5 sm:space-y-2'
+          }`}
+        >
           <h3
             onClick={() => onOpenDetail(product.id)}
-            className="font-semibold text-sm text-[#0D1B2A] leading-snug line-clamp-1 cursor-pointer hover:text-[#B8860B] transition-colors"
+            className={`font-semibold ${
+              isDenseMobile ? 'text-[10px] sm:text-sm' : 'text-xs sm:text-sm'
+            } text-[#0D1B2A] leading-snug line-clamp-1 cursor-pointer hover:text-[#B8860B] transition-colors`}
           >
             {product.title}
           </h3>
 
           {/* Price & Discount Row */}
-          <div className="flex items-baseline justify-between gap-1">
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono-num font-extrabold text-base text-[#0D1B2A]">
+          <div className="flex items-baseline justify-between gap-1 flex-wrap">
+            <div className="flex items-baseline gap-1">
+              <span
+                className={`font-mono-num font-extrabold ${
+                  isDenseMobile ? 'text-[11px] sm:text-base' : 'text-xs sm:text-base'
+                } text-[#0D1B2A]`}
+              >
                 ₹{product.sellingPrice.toLocaleString('en-IN')}
               </span>
               {product.regularMrp > product.sellingPrice && (
-                <span className="font-mono-num text-xs text-stone-400 line-through">
+                <span
+                  className={`font-mono-num ${
+                    isDenseMobile ? 'text-[9px] sm:text-xs' : 'text-[10px] sm:text-xs'
+                  } text-stone-400 line-through`}
+                >
                   ₹{product.regularMrp.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
             {discountPct > 0 && (
-              <span className="text-[11px] font-bold text-[#15803D]">
+              <span
+                className={`${
+                  isDenseMobile ? 'text-[8px] sm:text-[11px]' : 'text-[10px] sm:text-[11px]'
+                } font-bold text-[#15803D]`}
+              >
                 {discountPct}% OFF
               </span>
             )}
           </div>
 
           {/* Rating & Color Swatches Row */}
-          <div className="flex items-center justify-between text-xs pt-0.5">
-            <div className="flex items-center gap-1 text-stone-600 font-medium">
-              <Star className="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]" />
+          <div className="flex items-center justify-between text-[10px] sm:text-xs pt-0.5">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-stone-600 font-medium">
+              <Star className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 fill-[#F59E0B] text-[#F59E0B]" />
               <span className="font-bold text-[#0D1B2A]">
                 {product.rating.toFixed(1)}
               </span>
-              <span className="text-[11px] text-stone-400">
+              <span className="text-[9px] sm:text-[11px] text-stone-400">
                 ({product.reviewCount})
               </span>
             </div>
 
-            <div className="flex items-center gap-1">
-              {product.colorShades.slice(0, 4).map((c) => (
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              {product.colorShades.slice(0, isDenseMobile ? 3 : 4).map((c) => (
                 <span
                   key={c.id}
                   title={c.name}
-                  className="w-3.5 h-3.5 rounded-full border border-stone-300"
+                  className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full border border-stone-300"
                   style={{ backgroundColor: c.hex }}
                 />
               ))}
@@ -168,8 +189,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* Interactive Size Pills Row matching Mockup */}
-          <div className="flex items-center gap-1 pt-1 flex-wrap">
-            {product.sizes.slice(0, 5).map((s) => {
+          <div className="flex items-center gap-1 pt-0.5 flex-wrap">
+            {product.sizes.slice(0, isDenseMobile ? 4 : 5).map((s) => {
               const active = pickedSize === s.code;
               const out = s.stock <= 0;
               return (
@@ -178,7 +199,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   type="button"
                   disabled={out}
                   onClick={() => setPickedSize(s.code)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                  className={`${
+                    isDenseMobile ? 'px-1 py-0.5 text-[8px] sm:px-2 sm:text-[10px]' : 'px-1.5 py-0.5 text-[9px] sm:px-2 sm:text-[10px]'
+                  } rounded font-bold border transition-colors cursor-pointer ${
                     out
                       ? 'bg-stone-100 text-stone-300 border-stone-200 line-through cursor-not-allowed'
                       : active
@@ -195,15 +218,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Full-Width Deep Navy Add to Cart Button */}
-      <div className="px-3.5 pb-3.5 pt-1">
+      <div
+        className={`${
+          isDenseMobile ? 'px-1.5 pb-1.5 sm:px-3.5 sm:pb-3.5' : 'px-2.5 pb-2.5 sm:px-3.5 sm:pb-3.5'
+        } pt-1`}
+      >
         <button
           type="button"
           disabled={totalStock <= 0}
           onClick={() => onQuickAddToCart(product, pickedSize)}
-          className="w-full bg-[#0D1B2A] hover:bg-[#1B263B] disabled:opacity-40 text-white text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+          className={`w-full bg-[#0D1B2A] hover:bg-[#1B263B] disabled:opacity-40 text-white ${
+            isDenseMobile
+              ? 'text-[9px] sm:text-xs py-1.5 sm:py-2.5 px-1.5 sm:px-3 rounded-lg sm:rounded-xl'
+              : 'text-[11px] sm:text-xs py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-lg sm:rounded-xl'
+          } font-bold flex items-center justify-center gap-1 sm:gap-2 transition-colors cursor-pointer`}
         >
-          <ShoppingBag className="w-3.5 h-3.5 text-[#F5CE62]" />
-          <span>{totalStock > 0 ? 'Add to Cart' : 'Out of Stock'}</span>
+          <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#F5CE62] shrink-0" />
+          <span className="truncate">
+            {totalStock > 0 ? 'Add to Cart' : 'Out of Stock'}
+          </span>
         </button>
       </div>
     </div>
@@ -222,6 +255,10 @@ interface ProductListingPageProps {
   onToggleWishlist: (id: string) => void;
   onOpenDetail: (id: string) => void;
   onQuickAddToCart: (product: ProductCatalogItem, selectedSize?: string) => void;
+  onNavigateHome?: () => void;
+  onSelectCategory?: (category: string, subCategory?: string) => void;
+  mobileCols?: 2 | 3;
+  onChangeMobileCols?: (cols: 2 | 3) => void;
 }
 
 export const ProductListingPage: React.FC<ProductListingPageProps> = ({
@@ -235,6 +272,10 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
   onToggleWishlist,
   onOpenDetail,
   onQuickAddToCart,
+  onNavigateHome,
+  onSelectCategory,
+  mobileCols = 2,
+  onChangeMobileCols,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [selectedSubCategory, setSelectedSubCategory] =
@@ -354,7 +395,13 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
       {/* Breadcrumb Row */}
       <div className="flex items-center justify-between text-xs text-stone-500 mb-4">
         <div className="flex items-center gap-1.5 font-medium">
-          <span>Home</span>
+          <button
+            type="button"
+            onClick={() => onNavigateHome?.()}
+            className="hover:text-[#0D1B2A] hover:underline cursor-pointer"
+          >
+            Home
+          </button>
           <span>&gt;</span>
           <span className="font-bold text-[#0D1B2A]">
             {selectedCategory === 'All' ? 'All Fashion' : selectedCategory}
@@ -433,6 +480,7 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
                   onClick={() => {
                     setSelectedCategory(cat);
                     setSelectedSubCategory('All');
+                    onSelectCategory?.(cat, 'All');
                   }}
                   className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                     selectedCategory === cat
@@ -633,10 +681,10 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
             </div>
           )}
 
-          {/* Heading + Sort Dropdown Bar */}
-          <div className="bg-white rounded-2xl border border-[#E6E1D6] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          {/* Heading + Sort & Mobile 2/3-Column View Switcher Bar */}
+          <div className="bg-white rounded-2xl border border-[#E6E1D6] px-3.5 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-2.5">
             <div>
-              <h2 className="font-serif text-lg sm:text-xl font-bold text-[#0D1B2A]">
+              <h2 className="font-serif text-base sm:text-xl font-bold text-[#0D1B2A]">
                 {selectedSubCategory !== 'All'
                   ? `${selectedCategory !== 'All' ? `${selectedCategory}'s ` : ''}${selectedSubCategory}`
                   : selectedCategory !== 'All'
@@ -648,8 +696,36 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
               </h2>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-stone-500">
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Mobile 2-Dress vs 3-Dress Grid Toggle */}
+              {onChangeMobileCols && (
+                <div className="flex sm:hidden items-center bg-[#FAF8F5] border border-[#E6E1D6] rounded-xl p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onChangeMobileCols(2)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-colors cursor-pointer ${
+                      mobileCols === 2
+                        ? 'bg-[#0D1B2A] text-[#F5CE62]'
+                        : 'text-stone-600'
+                    }`}
+                  >
+                    2 Dress
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onChangeMobileCols(3)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-colors cursor-pointer ${
+                      mobileCols === 3
+                        ? 'bg-[#0D1B2A] text-[#F5CE62]'
+                        : 'text-stone-600'
+                    }`}
+                  >
+                    3 Dress
+                  </button>
+                </div>
+              )}
+
+              <span className="hidden sm:inline text-xs font-semibold text-stone-500">
                 Sort by:
               </span>
               <select
@@ -657,7 +733,7 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
                 onChange={(e) =>
                   setSortBy(e.target.value as typeof sortBy)
                 }
-                className="bg-[#FAF8F5] border border-[#E6E1D6] rounded-xl px-3 py-1.5 text-xs font-bold text-[#0D1B2A] focus:outline-none cursor-pointer"
+                className="bg-[#FAF8F5] border border-[#E6E1D6] rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold text-[#0D1B2A] focus:outline-none cursor-pointer"
               >
                 <option value="Popular">Popular</option>
                 <option value="Newest">Newest First</option>
@@ -669,7 +745,7 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
             </div>
           </div>
 
-          {/* Product Grid */}
+          {/* Product Grid: 2 or 3 Dresses per Row on Mobile Phone, 3-4 on Desktop */}
           {filteredProducts.length === 0 ? (
             <div className="bg-white rounded-3xl border border-[#E6E1D6] p-12 text-center space-y-3">
               <p className="font-serif text-xl font-bold text-[#0D1B2A]">
@@ -687,7 +763,13 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div
+              className={`grid ${
+                mobileCols === 3
+                  ? 'grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-4 xl:grid-cols-3'
+                  : 'grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3'
+              }`}
+            >
               {filteredProducts.map((item) => (
                 <ProductCard
                   key={item.id}
@@ -696,6 +778,7 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({
                   onToggleWishlist={onToggleWishlist}
                   onOpenDetail={onOpenDetail}
                   onQuickAddToCart={onQuickAddToCart}
+                  mobileCols={mobileCols}
                 />
               ))}
             </div>
@@ -1245,10 +1328,10 @@ export const ProductDetailsPage: React.FC<ProductDetailsPageProps> = ({
       {/* Related Products Section */}
       {relatedProducts.length > 0 && (
         <div className="space-y-4 pt-6 border-t border-[#E6E1D6]">
-          <h2 className="font-serif text-2xl font-bold text-[#0D1B2A]">
+          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0D1B2A]">
             Similar &amp; Related Products
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-5">
             {relatedProducts.map((item) => (
               <ProductCard
                 key={item.id}

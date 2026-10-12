@@ -215,11 +215,51 @@ export default function App() {
     }
   });
 
-  // ================= NAVIGATION & ROUTING STATE =================
-  const [currentPage, setCurrentPage] = useState<CustomerPageType>('home');
-  const [shopCategoryFilter, setShopCategoryFilter] = useState<string>('All');
-  const [shopSubCategoryFilter, setShopSubCategoryFilter] =
-    useState<string>('All');
+  // ================= NAVIGATION & ROUTING STATE (PERSISTED ACROSS REFRESH) =================
+  const getInitialNavState = (): {
+    page: CustomerPageType;
+    category: string;
+    subCategory: string;
+  } => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const urlPage = params.get('page') as CustomerPageType | null;
+        const urlCat = params.get('category');
+        const urlSub = params.get('sub');
+        if (urlPage) {
+          return {
+            page: urlPage,
+            category: urlCat || 'All',
+            subCategory: urlSub || 'All',
+          };
+        }
+        const saved = sessionStorage.getItem('rsc_active_nav_state_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            page: (parsed.page as CustomerPageType) || 'home',
+            category: parsed.category || 'All',
+            subCategory: parsed.subCategory || 'All',
+          };
+        }
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+    return { page: 'home', category: 'All', subCategory: 'All' };
+  };
+
+  const initialNav = getInitialNavState();
+  const [currentPage, setCurrentPage] = useState<CustomerPageType>(
+    initialNav.page
+  );
+  const [shopCategoryFilter, setShopCategoryFilter] = useState<string>(
+    initialNav.category
+  );
+  const [shopSubCategoryFilter, setShopSubCategoryFilter] = useState<string>(
+    initialNav.subCategory
+  );
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDetailProductId, setSelectedDetailProductId] = useState<string>(
     INITIAL_PRODUCTS[0].id
@@ -229,6 +269,23 @@ export default function App() {
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hoveredNavCat, setHoveredNavCat] = useState<string | null>(null);
+  const [mobileCols, setMobileCols] = useState<2 | 3>(() => {
+    try {
+      const saved = localStorage.getItem('rsc_mobile_grid_cols_v1');
+      return saved === '3' ? 3 : 2;
+    } catch {
+      return 2;
+    }
+  });
+
+  const handleUpdateMobileCols = (cols: 2 | 3) => {
+    setMobileCols(cols);
+    try {
+      localStorage.setItem('rsc_mobile_grid_cols_v1', String(cols));
+    } catch {
+      // Ignore
+    }
+  };
 
   // ================= HIDDEN 4-CLICK MANAGEMENT ACCESS (SUPER ADMIN & SELLER) =================
   const [logoClickCount, setLogoClickCount] = useState(0);
@@ -459,14 +516,43 @@ export default function App() {
     return () => unsub();
   }, [firebaseUid]);
 
-  // ================= STORE LOGO: CLICK TO REFRESH & 5-SECOND HOLD FOR ADMIN LOGIN =================
-  const handleStoreLogoClick = () => {
-    setCurrentPage('home');
+  // ================= STORE LOGO & NAVIGATION: CLICK TO REFRESH & 5-SECOND HOLD FOR ADMIN LOGIN =================
+  const navigatePageWithRefresh = (
+    targetPage: CustomerPageType,
+    category = 'All',
+    subCategory = 'All'
+  ) => {
+    setCurrentPage(targetPage);
     setSearchQuery('');
-    setShopCategoryFilter('All');
-    setShopSubCategoryFilter('All');
+    setShopCategoryFilter(category);
+    setShopSubCategoryFilter(subCategory);
+    setMobileMenuOpen(false);
+    setHoveredNavCat(null);
+    try {
+      sessionStorage.setItem(
+        'rsc_active_nav_state_v1',
+        JSON.stringify({ page: targetPage, category, subCategory })
+      );
+      const url = new URL(window.location.href);
+      if (targetPage === 'home' && category === 'All' && subCategory === 'All') {
+        url.searchParams.delete('page');
+        url.searchParams.delete('category');
+        url.searchParams.delete('sub');
+      } else {
+        url.searchParams.set('page', targetPage);
+        url.searchParams.set('category', category);
+        url.searchParams.set('sub', subCategory);
+      }
+      window.history.replaceState(null, '', url.toString());
+    } catch {
+      // Ignore history/sessionStorage errors in restricted frames
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
     window.location.reload();
+  };
+
+  const handleStoreLogoClick = () => {
+    navigatePageWithRefresh('home', 'All', 'All');
   };
 
   const handleStoreLogoHoldFiveSeconds = () => {
@@ -729,12 +815,7 @@ export default function App() {
   };
 
   const openCategoryShop = (catName: string, subCat = 'All') => {
-    setShopCategoryFilter(catName);
-    setShopSubCategoryFilter(subCat);
-    setCurrentPage('shop');
-    setMobileMenuOpen(false);
-    setHoveredNavCat(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigatePageWithRefresh('shop', catName, subCat);
   };
 
   const openProductDetail = (productId: string) => {
@@ -968,7 +1049,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 h-12">
             <button
               type="button"
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigatePageWithRefresh('home', 'All', 'All')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                 currentPage === 'home'
                   ? 'text-[#F5CE62] underline underline-offset-8 decoration-2'
@@ -1062,7 +1143,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setCurrentPage('contact')}
+              onClick={() => navigatePageWithRefresh('contact', 'All', 'All')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                 currentPage === 'contact'
                   ? 'text-[#F5CE62] underline underline-offset-8 decoration-2'
@@ -1078,6 +1159,112 @@ export default function App() {
             </div>
           </div>
         </nav>
+
+        {/* Mobile Always-Visible Search & Quick Category Bar (Phone View matching Desktop) */}
+        <div className="lg:hidden bg-[#0D1B2A] text-white border-t border-white/10 px-3 py-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (currentPage !== 'shop') setCurrentPage('shop');
+                }}
+                placeholder="Search dresses, kurtis, shirts, sarees..."
+                className="w-full bg-white text-[#0D1B2A] rounded-full pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none"
+              />
+            </div>
+
+            {/* Mobile 2-Dress vs 3-Dress Grid Switcher */}
+            <div className="flex items-center bg-white/10 border border-white/15 rounded-full p-0.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleUpdateMobileCols(2)}
+                className={`px-2 py-1 rounded-full text-[10px] font-extrabold transition-colors cursor-pointer ${
+                  mobileCols === 2
+                    ? 'bg-[#F5CE62] text-[#0D1B2A]'
+                    : 'text-white/80'
+                }`}
+                title="Show 2 dresses per row on phone"
+              >
+                2x
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateMobileCols(3)}
+                className={`px-2 py-1 rounded-full text-[10px] font-extrabold transition-colors cursor-pointer ${
+                  mobileCols === 3
+                    ? 'bg-[#F5CE62] text-[#0D1B2A]'
+                    : 'text-white/80'
+                }`}
+                title="Show 3 dresses per row on phone"
+              >
+                3x
+              </button>
+            </div>
+          </div>
+
+          {/* Horizontal Scrollable Category Navigation (Refreshes on Click) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <button
+              type="button"
+              onClick={() => navigatePageWithRefresh('home', 'All', 'All')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                currentPage === 'home'
+                  ? 'bg-[#F5CE62] text-[#0D1B2A]'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Home
+            </button>
+            {sortedCategories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => openCategoryShop(cat.name, 'All')}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                  currentPage === 'shop' && shopCategoryFilter === cat.name
+                    ? 'bg-[#F5CE62] text-[#0D1B2A]'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => openCategoryShop('All', 'Traditional Wear')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                currentPage === 'shop' &&
+                shopSubCategoryFilter === 'Traditional Wear'
+                  ? 'bg-[#F5CE62] text-[#0D1B2A]'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Traditional
+            </button>
+            <button
+              type="button"
+              onClick={() => openCategoryShop('All', 'All')}
+              className="px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap bg-white/10 text-[#F5CE62] hover:bg-white/20 cursor-pointer"
+            >
+              Offers
+            </button>
+            <button
+              type="button"
+              onClick={() => navigatePageWithRefresh('contact', 'All', 'All')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                currentPage === 'contact'
+                  ? 'bg-[#F5CE62] text-[#0D1B2A]'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Contact
+            </button>
+          </div>
+        </div>
 
         {/* Mobile Search & Accordion Menu */}
         {mobileMenuOpen && (
@@ -1099,10 +1286,7 @@ export default function App() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setCurrentPage('home');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => navigatePageWithRefresh('home', 'All', 'All')}
                 className="px-3 py-1.5 rounded-xl bg-[#0D1B2A] text-white text-xs font-bold"
               >
                 Home
@@ -1119,10 +1303,7 @@ export default function App() {
               ))}
               <button
                 type="button"
-                onClick={() => {
-                  setCurrentPage('contact');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => navigatePageWithRefresh('contact', 'All', 'All')}
                 className="px-3 py-1.5 rounded-xl bg-[#FAF8F5] border border-stone-200 text-xs font-bold"
               >
                 Contact
@@ -1136,10 +1317,10 @@ export default function App() {
       <main className="flex-1">
         {/* 1. MODERN HOMEPAGE MATCHING SCREEN #1 (NO TRY-ON) */}
         {currentPage === 'home' && (
-          <div className="space-y-12 pb-16">
+          <div className="space-y-7 sm:space-y-12 pb-16">
             {/* Hero Banner matching Screen #1 ("Style for Every You") */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-              <div className="relative rounded-3xl overflow-hidden bg-[#EFECE6] border border-[#E6E1D6] shadow-md min-h-[340px] sm:min-h-[430px] flex items-center">
+            <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6">
+              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-[#EFECE6] border border-[#E6E1D6] shadow-md min-h-[210px] sm:min-h-[430px] flex items-center">
                 <img
                   src={homepageConfig.heroBannerUrl}
                   alt={homepageConfig.heroTitle}
@@ -1147,21 +1328,21 @@ export default function App() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-[#FAF8F5]/95 via-[#FAF8F5]/80 to-transparent" />
 
-                <div className="relative z-10 p-8 sm:p-14 max-w-xl space-y-4">
-                  <span className="inline-block bg-[#0D1B2A] text-[#F5CE62] text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full">
+                <div className="relative z-10 p-5 sm:p-14 max-w-xl space-y-2.5 sm:space-y-4">
+                  <span className="inline-block bg-[#0D1B2A] text-[#F5CE62] text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest px-2.5 sm:px-3 py-1 rounded-full">
                     {homepageConfig.heroBadge}
                   </span>
-                  <h1 className="font-serif text-4xl sm:text-6xl font-bold text-[#0D1B2A] leading-[1.08]">
+                  <h1 className="font-serif text-2xl sm:text-6xl font-bold text-[#0D1B2A] leading-[1.08]">
                     {homepageConfig.heroTitle}
                   </h1>
-                  <p className="text-xs sm:text-sm font-medium text-stone-700 leading-relaxed">
+                  <p className="text-[11px] sm:text-sm font-medium text-stone-700 leading-relaxed line-clamp-2 sm:line-clamp-none">
                     {homepageConfig.heroSubtitle}
                   </p>
-                  <div className="pt-2">
+                  <div className="pt-1 sm:pt-2">
                     <button
                       type="button"
                       onClick={() => openCategoryShop('All', 'All')}
-                      className="bg-[#0D1B2A] hover:bg-[#1B263B] text-white font-bold text-xs sm:text-sm px-7 py-3.5 rounded-xl inline-flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+                      className="bg-[#0D1B2A] hover:bg-[#1B263B] text-white font-bold text-xs sm:text-sm px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl inline-flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
                     >
                       <span>{homepageConfig.heroCtaText}</span>
                       <ChevronRight className="w-4 h-4 text-[#F5CE62]" />
@@ -1171,9 +1352,9 @@ export default function App() {
               </div>
             </section>
 
-            {/* Circular Category Bubbles Row matching Screen #1 */}
-            <section className="max-w-5xl mx-auto px-4 sm:px-6">
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-4 text-center">
+            {/* Circular Category Bubbles Row matching Screen #1 (All 5 side-by-side on Phone & Desktop) */}
+            <section className="max-w-5xl mx-auto px-3 sm:px-6">
+              <div className="grid grid-cols-5 gap-2 sm:gap-4 text-center">
                 {[
                   {
                     label: 'Men',
@@ -1205,16 +1386,16 @@ export default function App() {
                     key={bubble.label}
                     type="button"
                     onClick={bubble.action}
-                    className="flex flex-col items-center gap-2 group cursor-pointer"
+                    className="flex flex-col items-center gap-1.5 sm:gap-2 group cursor-pointer"
                   >
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-[#D4AF37] bg-white shadow-xs group-hover:scale-105 transition-transform">
+                    <div className="w-14 h-14 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-[#D4AF37] bg-white shadow-xs group-hover:scale-105 transition-transform">
                       <img
                         src={bubble.img}
                         alt={bubble.label}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <span className="text-xs sm:text-sm font-bold text-[#0D1B2A] group-hover:text-[#B8860B]">
+                    <span className="text-[10px] sm:text-sm font-bold text-[#0D1B2A] group-hover:text-[#B8860B] truncate max-w-full">
                       {bubble.label}
                     </span>
                   </button>
@@ -1222,11 +1403,11 @@ export default function App() {
               </div>
             </section>
 
-            {/* Featured Products Row matching Screen #1 */}
+            {/* Featured Products Row matching Screen #1 (2-3 Dresses per Row on Phone, 5 on Desktop) */}
             {homepageConfig.showFeatured && featuredProducts.length > 0 && (
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+              <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3.5 sm:space-y-5">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#0D1B2A]">
+                  <h2 className="font-serif text-xl sm:text-3xl font-bold text-[#0D1B2A]">
                     Featured Products
                   </h2>
                   <button
@@ -1239,8 +1420,14 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {featuredProducts.slice(0, 5).map((item) => (
+                <div
+                  className={`grid ${
+                    mobileCols === 3
+                      ? 'grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5'
+                      : 'grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5'
+                  }`}
+                >
+                  {featuredProducts.slice(0, 6).map((item) => (
                     <ProductCard
                       key={item.id}
                       product={item}
@@ -1248,6 +1435,7 @@ export default function App() {
                       onToggleWishlist={handleToggleWishlist}
                       onOpenDetail={openProductDetail}
                       onQuickAddToCart={handleQuickAddToCart}
+                      mobileCols={mobileCols}
                     />
                   ))}
                 </div>
@@ -1338,15 +1526,15 @@ export default function App() {
               </div>
             </section>
 
-            {/* Trending & New Arrivals Section */}
+            {/* Trending & New Arrivals Section (2-3 Dresses per Row on Phone) */}
             {homepageConfig.showTrendingSection && trendingProducts.length > 0 && (
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+              <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3.5 sm:space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-extrabold uppercase tracking-widest text-[#B8860B]">
+                    <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-widest text-[#B8860B]">
                       TRENDING IN HORANDA (822110)
                     </span>
-                    <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#0D1B2A]">
+                    <h2 className="font-serif text-xl sm:text-3xl font-bold text-[#0D1B2A]">
                       Trending &amp; Bestselling Fashion
                     </h2>
                   </div>
@@ -1359,8 +1547,14 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  {trendingProducts.slice(0, 4).map((item) => (
+                <div
+                  className={`grid ${
+                    mobileCols === 3
+                      ? 'grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4'
+                      : 'grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4'
+                  }`}
+                >
+                  {trendingProducts.slice(0, 6).map((item) => (
                     <ProductCard
                       key={item.id}
                       product={item}
@@ -1368,13 +1562,14 @@ export default function App() {
                       onToggleWishlist={handleToggleWishlist}
                       onOpenDetail={openProductDetail}
                       onQuickAddToCart={handleQuickAddToCart}
+                      mobileCols={mobileCols}
                     />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* Department Showcases: Women, Men, Kids */}
+            {/* Department Showcases: Women, Men, Kids (2-3 Dresses per Row on Phone) */}
             {[
               { title: "Women's Fashion", cat: 'Women', items: womenProducts },
               { title: "Men's Fashion", cat: 'Men', items: menProducts },
@@ -1382,10 +1577,10 @@ export default function App() {
             ].map((sec) => (
               <section
                 key={sec.cat}
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4"
+                className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3.5 sm:space-y-4"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="font-serif text-2xl font-bold text-[#0D1B2A]">
+                  <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0D1B2A]">
                     {sec.title}
                   </h2>
                   <button
@@ -1396,8 +1591,14 @@ export default function App() {
                     Shop All {sec.cat} →
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  {sec.items.slice(0, 4).map((item) => (
+                <div
+                  className={`grid ${
+                    mobileCols === 3
+                      ? 'grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4'
+                      : 'grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4'
+                  }`}
+                >
+                  {sec.items.slice(0, 6).map((item) => (
                     <ProductCard
                       key={item.id}
                       product={item}
@@ -1405,6 +1606,7 @@ export default function App() {
                       onToggleWishlist={handleToggleWishlist}
                       onOpenDetail={openProductDetail}
                       onQuickAddToCart={handleQuickAddToCart}
+                      mobileCols={mobileCols}
                     />
                   ))}
                 </div>
@@ -1487,6 +1689,10 @@ export default function App() {
             onToggleWishlist={handleToggleWishlist}
             onOpenDetail={openProductDetail}
             onQuickAddToCart={handleQuickAddToCart}
+            onNavigateHome={() => navigatePageWithRefresh('home', 'All', 'All')}
+            onSelectCategory={(cat, sub) => openCategoryShop(cat, sub || 'All')}
+            mobileCols={mobileCols}
+            onChangeMobileCols={handleUpdateMobileCols}
           />
         )}
 
@@ -1542,7 +1748,13 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+              <div
+                className={`grid ${
+                  mobileCols === 3
+                    ? 'grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4'
+                    : 'grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4'
+                }`}
+              >
                 {wishedProducts.map((item) => (
                   <ProductCard
                     key={item.id}
@@ -1551,6 +1763,7 @@ export default function App() {
                     onToggleWishlist={handleToggleWishlist}
                     onOpenDetail={openProductDetail}
                     onQuickAddToCart={handleQuickAddToCart}
+                    mobileCols={mobileCols}
                   />
                 ))}
               </div>
@@ -1669,7 +1882,7 @@ export default function App() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('home')}
+                  onClick={() => navigatePageWithRefresh('home', 'All', 'All')}
                   className="hover:text-white cursor-pointer"
                 >
                   Home
@@ -1722,7 +1935,7 @@ export default function App() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('account')}
+                  onClick={() => navigatePageWithRefresh('account', 'All', 'All')}
                   className="hover:text-white cursor-pointer"
                 >
                   Track Order / My Orders
@@ -1731,7 +1944,7 @@ export default function App() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('policies')}
+                  onClick={() => navigatePageWithRefresh('policies', 'All', 'All')}
                   className="hover:text-white cursor-pointer"
                 >
                   Return &amp; Delivery Policy
@@ -1740,7 +1953,7 @@ export default function App() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('faq')}
+                  onClick={() => navigatePageWithRefresh('faq', 'All', 'All')}
                   className="hover:text-white cursor-pointer"
                 >
                   FAQ
@@ -1749,7 +1962,7 @@ export default function App() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('contact')}
+                  onClick={() => navigatePageWithRefresh('contact', 'All', 'All')}
                   className="hover:text-white cursor-pointer"
                 >
                   Contact Us
@@ -1758,7 +1971,7 @@ export default function App() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('about')}
+                  onClick={() => navigatePageWithRefresh('about', 'All', 'All')}
                   className="hover:text-white cursor-pointer"
                 >
                   About Us
@@ -1819,11 +2032,66 @@ export default function App() {
         )}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-5 right-5 z-40 bg-[#15803D] hover:bg-green-800 text-white px-4 py-3 rounded-full shadow-xl flex items-center gap-2 text-xs font-bold transition-transform hover:scale-105"
+        className="fixed bottom-16 lg:bottom-5 right-4 lg:right-5 z-40 bg-[#15803D] hover:bg-green-800 text-white px-3.5 py-2.5 lg:px-4 lg:py-3 rounded-full shadow-xl flex items-center gap-2 text-xs font-bold transition-transform hover:scale-105"
       >
         <MessageCircle className="w-4 h-4" />
         <span className="hidden sm:inline">WhatsApp Support</span>
       </a>
+
+      {/* Sticky Bottom Mobile App Navigation Bar (Phone View) */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0D1B2A] text-white border-t border-white/15 px-2 py-1.5 grid grid-cols-5 gap-1 shadow-2xl">
+        <button
+          type="button"
+          onClick={() => navigatePageWithRefresh('home', 'All', 'All')}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold cursor-pointer ${
+            currentPage === 'home' ? 'text-[#F5CE62]' : 'text-stone-300'
+          }`}
+        >
+          <span>Home</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => openCategoryShop('Men', 'All')}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold cursor-pointer ${
+            currentPage === 'shop' && shopCategoryFilter === 'Men'
+              ? 'text-[#F5CE62]'
+              : 'text-stone-300'
+          }`}
+        >
+          <span>Men</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => openCategoryShop('Women', 'All')}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold cursor-pointer ${
+            currentPage === 'shop' && shopCategoryFilter === 'Women'
+              ? 'text-[#F5CE62]'
+              : 'text-stone-300'
+          }`}
+        >
+          <span>Women</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => openCategoryShop('Kids', 'All')}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold cursor-pointer ${
+            currentPage === 'shop' && shopCategoryFilter === 'Kids'
+              ? 'text-[#F5CE62]'
+              : 'text-stone-300'
+          }`}
+        >
+          <span>Kids</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCurrentPage('cart')}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold cursor-pointer ${
+            currentPage === 'cart' ? 'text-[#F5CE62]' : 'text-stone-300'
+          }`}
+        >
+          <span>Cart ({totalCartItems})</span>
+        </button>
+      </nav>
 
       {/* 5-Second Hold on Store Logo -> Opens Dedicated Toner Admin & Seller Login Page */}
       {showHiddenAdminLoginModal && (
