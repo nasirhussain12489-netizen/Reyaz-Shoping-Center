@@ -1,0 +1,217 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Catalog product item for Reyaz Shopping Center.",
+      "type": "object",
+      "properties": {
+        "sku": {
+          "type": "string",
+          "description": "Unique product SKU code."
+        },
+        "title": {
+          "type": "string",
+          "description": "Product display title."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active • In Stock", "Low Stock", "Draft"],
+          "description": "Current inventory status."
+        },
+        "primaryCategory": {
+          "type": "string",
+          "enum": ["Men", "Women", "Kids"],
+          "description": "Main gender/department category."
+        },
+        "subCategory": {
+          "type": "string",
+          "description": "Subcategory name."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed product description."
+        },
+        "regularMrp": {
+          "type": "number",
+          "description": "Regular MRP in INR."
+        },
+        "sellingPrice": {
+          "type": "number",
+          "description": "Discounted selling price in INR."
+        },
+        "regionalCodEnabled": {
+          "type": "boolean",
+          "description": "Whether regional Cash on Delivery is enabled."
+        },
+        "warehouseLocation": {
+          "type": "string",
+          "description": "Warehouse rack location."
+        },
+        "totalStock": {
+          "type": "number",
+          "description": "Total stock count across sizes."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the admin or seller who created/updated the product."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "sku",
+        "title",
+        "status",
+        "primaryCategory",
+        "subCategory",
+        "description",
+        "regularMrp",
+        "sellingPrice",
+        "regionalCodEnabled",
+        "warehouseLocation",
+        "totalStock",
+        "ownerId",
+        "updatedAt"
+      ]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Regional COD customer order for Reyaz Shopping Center in Horanda Alias Ramgarh (822110).",
+      "type": "object",
+      "properties": {
+        "orderNumber": {
+          "type": "string",
+          "description": "Order reference code."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Customer full name."
+        },
+        "village": {
+          "type": "string",
+          "description": "Customer village or locality in Horanda Alias Ramgarh, Palamu."
+        },
+        "sku": {
+          "type": "string",
+          "description": "Ordered product SKU."
+        },
+        "productTitle": {
+          "type": "string",
+          "description": "Ordered product title."
+        },
+        "size": {
+          "type": "string",
+          "description": "Selected garment size."
+        },
+        "shade": {
+          "type": "string",
+          "description": "Selected color shade."
+        },
+        "amount": {
+          "type": "number",
+          "description": "COD order value in INR."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Order Placed",
+            "Confirmed",
+            "Processing",
+            "Shipped",
+            "Out for Delivery",
+            "Delivered",
+            "Cancelled"
+          ],
+          "description": "Fulfillment status."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user or store admin."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Server timestamp of creation."
+        }
+      },
+      "required": [
+        "orderNumber",
+        "customerName",
+        "village",
+        "sku",
+        "productTitle",
+        "size",
+        "shade",
+        "amount",
+        "status",
+        "ownerId",
+        "createdAt"
+      ]
+    },
+    "Seller": {
+      "title": "Seller",
+      "description": "Seller account created and managed by Super Admin.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Seller full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "Seller login Gmail/email."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Seller phone number."
+        },
+        "department": {
+          "type": "string",
+          "description": "Assigned department."
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether seller account is active."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the Super Admin."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Server timestamp."
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "phone",
+        "department",
+        "active",
+        "ownerId",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
+      },
+      "description": "Storefront product catalog managed by Reyaz Shopping Center Super Admin and authorized Sellers."
+    },
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Regional COD orders for Horanda Alias Ramgarh (822110), Palamu."
+    },
+    "/sellers/{sellerId}": {
+      "schema": {
+        "$ref": "#/entities/Seller"
+      },
+      "description": "Seller accounts created by Super Admin."
+    }
+  }
+}

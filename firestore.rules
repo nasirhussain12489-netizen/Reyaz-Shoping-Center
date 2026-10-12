@@ -1,0 +1,152 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'nasirhussain12489@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isOwnerOrAdmin(uid) {
+      return isSignedIn() && (request.auth.uid == uid || isSuperAdmin());
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidProductPayload(data) {
+      let allowedKeys = [
+        'sku',
+        'title',
+        'status',
+        'primaryCategory',
+        'subCategory',
+        'description',
+        'regularMrp',
+        'sellingPrice',
+        'regionalCodEnabled',
+        'warehouseLocation',
+        'totalStock',
+        'ownerId',
+        'updatedAt'
+      ];
+      return data.keys().hasAll(allowedKeys)
+        && data.keys().hasOnly(allowedKeys)
+        && isValidString(data.sku, 2, 60)
+        && isValidString(data.title, 2, 200)
+        && data.status in ['Active • In Stock', 'Low Stock', 'Draft']
+        && data.primaryCategory in ['Men', 'Women', 'Kids']
+        && isValidString(data.subCategory, 1, 100)
+        && isValidString(data.description, 1, 2000)
+        && data.regularMrp is number && data.regularMrp >= 0 && data.regularMrp <= 500000
+        && data.sellingPrice is number && data.sellingPrice >= 0 && data.sellingPrice <= 500000
+        && data.regionalCodEnabled is bool
+        && isValidString(data.warehouseLocation, 1, 200)
+        && data.totalStock is int && data.totalStock >= 0 && data.totalStock <= 100000
+        && isValidString(data.ownerId, 1, 128)
+        && data.updatedAt == request.time;
+    }
+
+    function isValidOrderPayload(data) {
+      let allowedKeys = [
+        'orderNumber',
+        'customerName',
+        'village',
+        'sku',
+        'productTitle',
+        'size',
+        'shade',
+        'amount',
+        'status',
+        'ownerId',
+        'createdAt'
+      ];
+      return data.keys().hasAll(allowedKeys)
+        && data.keys().hasOnly(allowedKeys)
+        && isValidString(data.orderNumber, 2, 40)
+        && isValidString(data.customerName, 1, 120)
+        && isValidString(data.village, 1, 160)
+        && isValidString(data.sku, 2, 60)
+        && isValidString(data.productTitle, 1, 200)
+        && isValidString(data.size, 1, 20)
+        && isValidString(data.shade, 1, 60)
+        && data.amount is number && data.amount >= 0 && data.amount <= 500000
+        && data.status in ['Order Placed', 'Confirmed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled']
+        && isValidString(data.ownerId, 1, 128)
+        && data.createdAt == request.time;
+    }
+
+    function isValidSellerPayload(data) {
+      let allowedKeys = [
+        'name',
+        'email',
+        'phone',
+        'department',
+        'active',
+        'ownerId',
+        'updatedAt'
+      ];
+      return data.keys().hasAll(allowedKeys)
+        && data.keys().hasOnly(allowedKeys)
+        && isValidString(data.name, 2, 120)
+        && isValidString(data.email, 3, 150)
+        && isValidString(data.phone, 5, 25)
+        && isValidString(data.department, 2, 80)
+        && data.active is bool
+        && isValidString(data.ownerId, 1, 128)
+        && data.updatedAt == request.time;
+    }
+
+    match /products/{productId} {
+      allow get, list: if isSignedIn();
+      allow create: if isOwnerOrAdmin(incoming().ownerId)
+        && isValidProductPayload(incoming());
+      allow update: if isOwnerOrAdmin(existing().ownerId)
+        && isValidProductPayload(incoming())
+        && incoming().ownerId == existing().ownerId;
+      allow delete: if isOwnerOrAdmin(existing().ownerId);
+    }
+
+    match /orders/{orderId} {
+      allow get, list: if isSignedIn();
+      allow create: if isOwnerOrAdmin(incoming().ownerId)
+        && isValidOrderPayload(incoming());
+      allow update: if isOwnerOrAdmin(existing().ownerId)
+        && isValidOrderPayload(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isOwnerOrAdmin(existing().ownerId);
+    }
+
+    match /sellers/{sellerId} {
+      allow get, list: if isSignedIn();
+      allow create: if isOwnerOrAdmin(incoming().ownerId)
+        && isValidSellerPayload(incoming());
+      allow update: if isOwnerOrAdmin(existing().ownerId)
+        && isValidSellerPayload(incoming())
+        && incoming().ownerId == existing().ownerId;
+      allow delete: if isOwnerOrAdmin(existing().ownerId);
+    }
+  }
+}
